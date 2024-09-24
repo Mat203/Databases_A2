@@ -1,5 +1,7 @@
-create index idx_order_date
-	on orders(order_date)
+USE product_db;
+
+CREATE INDEX idx_order_date
+	ON orders(order_date)
 
 WITH cte AS (
     SELECT o.order_id, o.order_date, p.product_id, p.product_name, c.city
@@ -9,59 +11,21 @@ WITH cte AS (
     WHERE o.order_date > '2023-01-01'
 ),
 
-ProductCountsByCity AS (
-    SELECT product_name, city, COUNT(*) AS order_count
+ProductCounts AS (
+    SELECT product_name, COUNT(*) AS order_count
     FROM cte
-    GROUP BY product_name, city
+    GROUP BY product_name
 )
 
-SELECT 
-    pc.city,
-    (SELECT product_name FROM ProductCountsByCity WHERE city=pc.city ORDER BY order_count DESC LIMIT 1) as most_popular_product,
-    (SELECT product_name FROM ProductCountsByCity WHERE city=pc.city ORDER BY order_count ASC LIMIT 1) as least_popular_product
-FROM ProductCountsByCity pc
-GROUP BY pc.city
-;
+SELECT
+    (SELECT product_name FROM ProductCounts ORDER BY order_count DESC LIMIT 1) AS most_popular_product,
+    (SELECT product_name FROM ProductCounts ORDER BY order_count ASC LIMIT 1) AS least_popular_product;
+--------------------------
 
 SELECT
   (
     SELECT
-      CONCAT(product_name, ": ", cnt)
-    FROM
-      (
-        SELECT
-          product_name,
-          COUNT(*) AS cnt
-        FROM
-          orders o
-          JOIN products p ON o.product_id = p.product_id
-        WHERE
-          o.order_date > '2023-01-01'
-        GROUP BY
-          product_name
-      ) AS product_counts
-    WHERE
-      cnt = (
-        SELECT
-          MIN(cnt)
-        FROM
-          (
-            SELECT
-              COUNT(*) AS cnt
-            FROM
-              orders o
-              JOIN products p ON o.product_id = p.product_id
-            WHERE
-              o.order_date > '2023-01-01'
-            GROUP BY
-              product_name
-          ) AS min_counts
-      )
-    LIMIT 1
-  ) AS least_popular_product,
-  (
-    SELECT
-      CONCAT(product_name, ": ", cnt)
+      product_name
     FROM
       (
         SELECT
@@ -93,4 +57,39 @@ SELECT
           ) AS max_counts
       )
     LIMIT 1
-  ) AS most_popular_product;
+  ) AS most_popular_product,
+  (
+    SELECT
+      product_name
+    FROM
+      (
+        SELECT
+          product_name,
+          COUNT(*) AS cnt
+        FROM
+          orders o
+          JOIN products p ON o.product_id = p.product_id
+        WHERE
+          o.order_date > '2023-01-01'
+        GROUP BY
+          product_name
+      ) AS product_counts
+    WHERE
+      cnt = (
+        SELECT
+          MIN(cnt)
+        FROM
+          (
+            SELECT
+              COUNT(*) AS cnt
+            FROM
+              orders o
+              JOIN products p ON o.product_id = p.product_id
+            WHERE
+              o.order_date > '2023-01-01'
+            GROUP BY
+              product_name
+          ) AS min_counts
+      )
+    LIMIT 1
+  ) AS least_popular_product;
